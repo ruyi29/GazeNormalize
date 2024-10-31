@@ -107,7 +107,7 @@ def xnorm(input, camera_matrix,
     print('detected one face')
 
     largest_face = max(detected_faces, key=lambda rect: rect.width() * rect.height())
-    print("max face position:", largest_face)
+    # print("max face position:", largest_face)
 
     # shape = predictor(input, detected_faces[idx])
     shape = predictor(input, largest_face)
@@ -142,7 +142,7 @@ def xnorm(input, camera_matrix,
     landmarks_sub = landmarks_sub.astype(float)  # input to solvePnP function must be float type
     landmarks_sub = landmarks_sub.reshape(6, 1, 2)  # input to solvePnP requires such shape
     face_center_in_img = np.mean(landmarks_sub, axis=0)
-    print(face_center_in_img.shape)
+    # print(face_center_in_img.shape)
     hr, ht = estimateHeadPose(landmarks_sub, facePts, camera_matrix, camera_distortion)
     return hr, ht, Ear, face_center_in_img
 
@@ -161,7 +161,7 @@ def xnorm_smooth(input, camera_matrix, input_idx, landmarks_sub_history, filter_
     print('detected one face')
 
     largest_face = max(detected_faces, key=lambda rect: rect.width() * rect.height())
-    print("max face position:", largest_face)
+    # print("max face position:", largest_face)
 
     # shape = predictor(input, detected_faces[idx])
     shape = predictor(input, largest_face)
@@ -197,7 +197,7 @@ def xnorm_smooth(input, camera_matrix, input_idx, landmarks_sub_history, filter_
     landmarks_sub = landmarks_sub.reshape(6, 1, 2)  # input to solvePnP requires such shape
     landmarks_sub_filtered = filter_landmarks(landmarks_sub, landmarks_sub_history, input_idx, filter_over)
     face_center_in_img=np.mean(landmarks_sub_filtered,axis=0)[0]
-    print('face_center_in_img:',face_center_in_img)
+    # print('face_center_in_img:',face_center_in_img)
     hr, ht = estimateHeadPose(landmarks_sub, facePts, camera_matrix, camera_distortion)
     return hr, ht, Ear,landmarks_sub_history,face_center_in_img
 
@@ -279,7 +279,7 @@ def enorm(input, camera_matrix,
     lm = lm.astype(np.float32)
     lm = lm.reshape(num_pts, 1, 2)
     face_center_in_img = np.mean(lm,axis=0)
-    print(face_center_in_img.shape)
+    # print(face_center_in_img.shape)
     hr, ht = estimateHeadPose(lm, facePts, camera_matrix, camera_distortion)
     # Ear未完成，占位
     Ear = -1
@@ -423,17 +423,17 @@ def GazeNormalization(image, camera_matrix, camera_distortion, gc, w, h, predict
                 warp_image = np.zeros((224, 224, 3), dtype=np.byte)
                 gcn = np.zeros((3, 1))
                 R = np.zeros((3, 3))
-                return warp_image, gcn, R, -1, (-1,-1)
+                return warp_image, gcn, R, -1, (-1,-1), -1
             face = np.loadtxt('./modules/faceModelGeneric.txt')
             num_pts = face.shape[1]
             face_model = face.T.reshape(num_pts, 3)
-            warp_image, _, gcn, R = xtrans(image, face_model, hr, ht, camera_matrix, w, h, gc)
-            return warp_image, gcn, R, Ear, face_center[0]
+            warp_image, hrn, gcn, R = xtrans(image, face_model, hr, ht, camera_matrix, w, h, gc)
+            return warp_image, gcn, R, Ear, face_center[0], hrn
         face_model_load = np.loadtxt('./modules/face_model.txt')  # Generic face model with 3D facial landmarks
         landmark_use = [20, 23, 26, 29, 15, 19]  # we use eye corners and nose conners
         face_model = face_model_load[landmark_use, :]
-        warp_image, _, gcn, R = xtrans(image, face_model, hr, ht, camera_matrix, w, h, gc)
-    return warp_image, gcn, R, Ear, face_center[0]
+        warp_image, hrn, gcn, R = xtrans(image, face_model, hr, ht, camera_matrix, w, h, gc)
+    return warp_image, gcn, R, Ear, face_center[0], hrn
 
 def avgSmooth(arr, avgOver=5, preserveLength=False):
     ''' example:
