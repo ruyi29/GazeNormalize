@@ -16,12 +16,12 @@ def get_folder_names(directory):
     folder_names.sort()
     return folder_names
 
-folder_path = './data/raw/test/'
+folder_path = './data/raw/train/'
 sub_ids = get_folder_names(folder_path)
-save_folder_path = './data/pre/test/'
+save_folder_path = './data/pre/train/'
 
 cam = './Calibration/cam.xml'  # this is camera calibration information file obtained with OpenCV
-fs = cv2.FileStorage(cam, cv2.FILE_STORAGE_READ)
+fs = cv2.FileStorage(cam, cv2.FILE_STORAGE_READ) 
 w = 1600
 h = 825
 pixel_scale = 0.211667

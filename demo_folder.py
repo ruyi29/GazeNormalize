@@ -1,3 +1,5 @@
+# 遍历文件夹里的文件名
+
 import os
 
 def get_folder_names(directory):
