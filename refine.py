@@ -19,40 +19,9 @@ import copy
 from pt_module import StNet,StRefine
 from ipdb import set_trace as st
 
-situation_num = 2
-
-def rescale(pred_orginal,size):
-    for i in range(len(pred_orginal)):
-        for j in range(len(pred_orginal[i])):
-            pred_orginal[i][j][0] = pred_orginal[i][j][0] * size[0] / 1600
-            pred_orginal[i][j][1] = pred_orginal[i][j][1] * size[1] / 825
-    return pred_orginal
-
-def rev_rescale(pred_scaled,pred_size):
-    for i in range(len(pred_scaled)):
-        for j in range(len(pred_scaled[i])):
-            pred_scaled[i][j][0] = pred_scaled[i][j][0] * 1600 / pred_size[0]
-            pred_scaled[i][j][1] = pred_scaled[i][j][1] * 825 / pred_size[1]
-    return pred_scaled
-
-def margin(pred,size,margin_size=0.2):
-    for i in range(len(pred)):
-        for j in range(len(pred[i])):
-            pred[i][j][0] = pred[i][j][0] + size[0] * margin_size
-            pred[i][j][1] = pred[i][j][1] + size[1] * margin_size
-    size_with_margin=np.multiply(size,(1+2*margin_size))
-    return pred,size_with_margin
-
-def remove_margin(pred,size_with_margin,margin_size=0.2):
-    for i in range(len(pred)):
-        for j in range(len(pred[i])):
-            pred[i][j][0] = pred[i][j][0] - size_with_margin[0] * margin_size / (1 + margin_size)
-            pred[i][j][1] = pred[i][j][1] - size_with_margin[1] * margin_size / (1 + margin_size)
-    size=np.multiply(size_with_margin,(1/(1+2*margin_size)))
-    return pred,size
-
 
 def Revert_normalization(pred_pitchyaw,RMat):
+    from pred_plot import situation_num
     pred_vector = [[] for _ in range(situation_num)]
     for i in range(len(pred_pitchyaw)):
         pred_vector[i] = warp_norm.pitchyaw_to_vector(pred_pitchyaw[i])
@@ -79,7 +48,9 @@ def Revert_normalization(pred_pitchyaw,RMat):
 
     return pred_gc_org
 
+
 def PoG_errors(pred, ground_truth):
+    from pred_plot import situation_num
     pixel_scale = np.array([0.202, 0.224])
     pred_xerrors=[]
     pred_yerrors=[]
@@ -98,7 +69,9 @@ def PoG_errors(pred, ground_truth):
         pred_yerrors_cm.append(pred_yerrors[i] * 0.1 * pixel_scale[1])
     return pred_xerrors_cm, pred_yerrors_cm
 
+
 def in_screen_percentage(pred):
+    from pred_plot import situation_num
     in_screen_net = [[] for _ in range(situation_num)]
     for i in range(situation_num):
         for j in range(len(pred[i])):
@@ -116,64 +89,3 @@ def in_screen_percentage(pred):
             total_in = total_in + in_screen_net[i][j]
         in_screen_percentage.append(total_in / len(pred[i]))
     return in_screen_percentage
-
-def Zoom(pred_history, ground_truth_history, pred, range_scale = 0.8):
-    zoom_scale = []
-    for i in range(len(pred_history)):
-        pred_percentile = np.percentile(pred_history[i], [100*(1-range_scale)/2, 100-100*(1-range_scale)/2], axis=0)  # get percentile
-        truth_percentile = np.percentile(ground_truth_history[i], [100*(1-range_scale)/2, 100-100*(1-range_scale)/2], axis=0)  # get percentile
-        pred_percentile_range = pred_percentile[1] - pred_percentile[0]
-        truth_percentile_range = truth_percentile[1] - truth_percentile[0]
-        zoom_scale.append(truth_percentile_range / pred_percentile_range)
-    # print(zoom_scale)
-    pred_gc_zoomed = [[] for _ in range(situation_num)]
-    for i in range(len(pred)):
-        total_pred = [0, 0]
-        for j in range(int(len(pred[i]))):
-            total_pred = total_pred + pred[i][j]
-        center = total_pred / int(len(pred[i]))
-        pred_gc_zoomed[i] = (pred[i] - center) * zoom_scale[i] + center
-    return pred_gc_zoomed
-
-def Self_Calibration(pred_history, ground_truth_history, pred):
-    gtr = [[] for _ in range(situation_num)]
-    aver_pred = [[] for _ in range(situation_num)]
-    offset = [[] for _ in range(situation_num)]
-    for i in range(len(pred_history)):
-        total_truth = [0, 0]
-        total_pred = [0, 0]
-        gtr[i] = [800, 412.5]
-
-        for j in range(int(len(pred_history[i]))):
-            total_truth = total_truth + ground_truth_history[i][j]
-            total_pred = total_pred + pred_history[i][j]
-        aver_pred[i] = total_pred / int(len(pred_history[i]))
-        offset[i] = aver_pred[i] - gtr[i]
-    # print(gtr)
-    # print(aver_pred)
-    # print(offset)
-
-    refine_pred = [[] for _ in range(situation_num)]
-    for i in range(len(pred)):
-        refine_pred[i] = pred[i] - offset[i]
-    return refine_pred
-
-def get_face_center_label(x, y, image_center):
-    # image_center = (640 / 2, 480 / 2)
-    distance_to_center = ((x - image_center[0]) ** 2 + (y - image_center[1]) ** 2) ** 0.5
-    # print(distance_to_center)
-    if distance_to_center <= 58:
-        return 0 #upright
-    else:
-        # 判断坐标点所在的区域
-        diagonal1 = (image_center[1] / image_center[0]) * x
-        diagonal2 = 2*image_center[1] - (image_center[1] / image_center[0]) * x
-
-        if y <= image_center[1] and y <= diagonal1 and y <= diagonal2:#上
-            return 1
-        elif x > image_center[0] and y < diagonal1 and y > diagonal2:#右
-            return 2
-        elif y > image_center[1] and y >= diagonal1 and y >= diagonal2:#下
-            return 3
-        elif x < image_center[0] and y > diagonal1 and y < diagonal2:#左
-            return 4

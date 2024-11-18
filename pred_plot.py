@@ -21,29 +21,27 @@ from ipdb import set_trace as st
 import refine
 import os
 
-data_model = 'Gaze360'
-situation_num = 2
-
 colors = plt.cm.viridis(np.linspace(0, 1, 4))
 plt.rcParams['font.sans-serif']=['SimHei'] #用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False
-
 model_dir = './models'
 state_name = 'spatical_transform_model_fake_eyetracking_dataset_1kg_128_72_error00_valid_random_ii_in_sequence_person_gt_lr_0.1_situation_numsituation_num_full.pt'
 state_path = model_dir + '/' + state_name
 
-if situation_num == 9:
-    condition_label=[r'白天室内正面光', r'白天室内背面光', r'白天室内侧面光', 
-                    r'白天室外任意光', r'晚上室内顶灯光', r'黑暗环境屏幕光',
-                    r'黑暗台灯正面光', r'黑暗台灯侧面光', r'黑暗环境外部光',
-                    ]
-elif situation_num == 2:
-    condition_label=[r'upright', r'not_upright']
-elif situation_num == 1:
-    condition_label=[r'glass']
-    # condition_label=[r'noglass']
-# print(len(condition_label))
+data_model = 'Gaze360'             # 使用的模型（'Columbia', 'EVE', 'Gaze360', 'MPII', 'Ours', 'xgaze')
+situation_num = 2                  # 可视化情况的数量
+folder_path = './data/pre/test/'   # 数据的存储文件
 
+if situation_num == 9:     # 光照情况
+    condition_label=['白天室内正面光', '白天室内背面光', '白天室内侧面光', 
+                     '白天室外任意光', '晚上室内顶灯光', '黑暗环境屏幕光',
+                     '黑暗台灯正面光', '黑暗台灯侧面光', '黑暗环境外部光',
+                    ]
+elif situation_num == 2:   # 头部姿态
+    condition_label=['upright', 'not_upright']
+elif situation_num == 1:   # 配戴眼镜
+    condition_label=['glass']
+    # condition_label=[r'noglass']
 
 # 得到每张照片的编号用于对应情况然后加入相应列表
 def get_folder_names(directory):
@@ -53,14 +51,21 @@ def get_folder_names(directory):
     folder_names.sort()
     return folder_names
 
-folder_path = './data/pre/test/'
-sub_ids = get_folder_names(folder_path)
-# sub_ids = [1, 2, 3, 21, 22, 25]
-# sub_ids = [16, 36]
+# 获取需要遍历的主体编号
+if condition_label == ['glass']:
+    sub_ids = [1, 2, 3, 21, 22, 25]
+elif condition_label == ['noglass']:
+    sub_ids = [16, 36]
+else:
+    sub_ids = get_folder_names(folder_path)
 
-file_dict = []
-labels = []
-R = []
+
+
+##TODO：我建议要么用csv，要么用pkl，这样真的好sb啊
+
+frame_index = []   # 照片的编号
+labels = []      # 视线在屏幕上的真值
+R = []           # 包含R的pkl文件
 
 for sub_id in sub_ids:
     image_folder = folder_path + str(sub_id)+'/preprocessed_images'
@@ -74,30 +79,37 @@ for sub_id in sub_ids:
         pkl = pickle.load(fo, encoding='bytes')
         R.extend(pkl)
 
-    for image_path, label, mat_norm, gc_normalized, head_norm, _, _ in df.itertuples(index=True):
-        frame_index = int(''.join(filter(str.isdigit, image_path)))
-        file_dict.append(frame_index)
+    for image_path, label, mat_norm, _, _, _, _ in df.itertuples(index=True):
+        index = int(''.join(filter(str.isdigit, image_path)))
+        frame_index.append(index)
         label = list(map(int, label.strip('[]').split()))
         labels.append(label)
 
 # 读取预测后的数据文件
-predictions = np.loadtxt('C:/Users/cry/Desktop/GazeEvaluate/Ours_test_predictions/' + data_model + '_predictions.txt', delimiter=',')
+name = ''  # 用于区分是否佩戴眼镜（补充文件名）
+if condition_label == ['glass']:
+    name = '_glass'
+elif condition_label == ['noglass']:
+    name = '_noglass'
+predictions = np.loadtxt('C:/Users/cry/Desktop/GazeEvaluate/Ours_test_predictions/' + data_model + name + '_predictions.txt', delimiter=',')
 predictions = predictions.tolist()
 
-def get_condition_number(file_dict):
+# 通过照片的编号，获取对应情况的序号
+def get_condition_number(frame_index):
     if situation_num == 9:
-        return file_dict//264
+        return frame_index // 264
     elif situation_num == 2:
-        return ((file_dict-1)//22)%2
+        return ((frame_index - 1) // 22) % 2
     elif situation_num == 1:
         return 0
 
-ground_truth = [[] for _ in range(situation_num)]
-pred = [[] for _ in range(situation_num)]
-RMat = [[] for _ in range(situation_num)]
+# 将对应情况的数据分类存储
+ground_truth = [[] for _ in range(situation_num)]   # 视线在屏幕上的真值
+pred = [[] for _ in range(situation_num)]           # 预测视线
+RMat = [[] for _ in range(situation_num)]           # 旋转矩阵
 
-for i in range(len(file_dict)):
-    number = get_condition_number(file_dict[i])
+for i in range(len(frame_index)):
+    number = get_condition_number(frame_index[i])
     if number >= 0:
         ground_truth[number].append(labels[i])
         pred[number].append(predictions[i])
@@ -107,16 +119,18 @@ for i in range(len(ground_truth)):
     ground_truth[i] = np.vstack(ground_truth[i])
     pred[i] = np.vstack(pred[i])
 
+
+# 计算误差
 pred_gc_org = refine.Revert_normalization(pred,RMat)
 pred_xerrors_cm, pred_yerrors_cm = refine.PoG_errors(pred_gc_org, ground_truth)
-
+device_level_accuracy = refine.in_screen_percentage(pred_gc_org)
 print('pred errors:')
 print(pred_xerrors_cm)
 print(pred_yerrors_cm)
-
-device_level_accuracy = refine.in_screen_percentage(pred_gc_org)
 print(device_level_accuracy)
 
+
+# 可视化绘图 & 存储
 for i in range(situation_num):
     fig = plt.figure(figsize=(10, 12))
     ax = fig.add_subplot()
