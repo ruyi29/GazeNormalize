@@ -6,7 +6,6 @@ import pandas as pd
 from PIL import Image
 import warp_norm
 import pickle
-import h5py
 
 
 def get_folder_names(directory):
@@ -16,9 +15,9 @@ def get_folder_names(directory):
     folder_names.sort()
     return folder_names
 
-folder_path = './data/raw/train/'
+folder_path = './data/raw/test/'
 sub_ids = get_folder_names(folder_path)
-save_folder_path = './data/pre/train/'
+save_folder_path = './data/pre/test/'
 
 cam = './Calibration/cam.xml'  # this is camera calibration information file obtained with OpenCV
 fs = cv2.FileStorage(cam, cv2.FILE_STORAGE_READ) 
@@ -79,7 +78,7 @@ for sub_id in sub_ids:
             # print('face_center_in_img', face_center_in_img)
             # 添加到数据集列表
             # face_area_label = test.get_face_center_label(face_center_in_img[0], face_center_in_img[1], (320, 240))
-            dataset.append({'image_path': f'preprocessed_image_{filename}', 'original_label': label, 'R': R, 'gc_normalized': gaze_center})
+            dataset.append({'image_path': f'preprocessed_image_{filename}', 'original_label': label, 'R': R, 'gc_normalized': gaze_center, 'hr_norm': hrn, 'face_center': face_center_in_img, 'Ear': Ear})   
 
     pickle_file_path = os.path.join(save_folder_path, str(sub_id) + '/subject' + str(sub_id).zfill(2) + '.pkl')
     with open(pickle_file_path, 'wb') as file:
