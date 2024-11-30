@@ -61,7 +61,7 @@ else:
 
 
 
-##TODO：我建议要么用csv，要么用pkl，这样真的好sb啊
+##TODO：我建议要么用csv，要么用pkl，这样真的好蠢啊
 
 frame_index = []   # 照片的编号
 labels = []      # 视线在屏幕上的真值

@@ -19,12 +19,12 @@ folder_path = './data/raw/test/'
 sub_ids = get_folder_names(folder_path)
 save_folder_path = './data/pre/test/'
 
-cam = './Calibration/cam.xml'  # this is camera calibration information file obtained with OpenCV
+cam = './Calibration/cam.xml' 
 fs = cv2.FileStorage(cam, cv2.FILE_STORAGE_READ) 
 w = 1600
 h = 825
 pixel_scale = 0.211667
-camera_matrix = fs.getNode('Camera_Matrix').mat() # camera calibration information is used for data normalization
+camera_matrix = fs.getNode('Camera_Matrix').mat() 
 camera_distortion = fs.getNode('Distortion_Coefficients').mat()
 
 for sub_id in sub_ids:
